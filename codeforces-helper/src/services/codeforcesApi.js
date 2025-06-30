@@ -103,51 +103,80 @@ export const fetchContestList = async () => {
   }
 };
 
-export const fetchUserInfo = async (handle) => {
+export const fetchUserSubmissions = async (handle) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/user.info?handles=${handle}`, {
-      timeout: 10000, // 10 second timeout
+    const response = await axios.get(`${API_BASE_URL}/user.status?handle=${handle}`, {
+      timeout: 15000, // 15 second timeout
     });
     
     if (response.data.status !== 'OK') {
-      throw new Error('Failed to fetch user info from Codeforces API');
+      throw new Error('Failed to fetch user submissions from Codeforces API');
     }
 
-    return response.data.result[0];
+    // Extract solved problems
+    const solvedProblems = [];
+    const solvedTags = new Map();
+    
+    response.data.result.forEach(submission => {
+      if (submission.verdict === 'OK' && submission.problem && submission.problem.contestId) {
+        const problemId = `${submission.problem.contestId}-${submission.problem.index}`;
+        // Add to solved problems if not already present
+        if (!solvedProblems.includes(problemId)) {
+          solvedProblems.push(problemId);
+          
+          // Count tags for solved problems
+          if (submission.problem.tags) {
+            submission.problem.tags.forEach(tag => {
+              const normalizedTag = tag.toLowerCase();
+              solvedTags.set(normalizedTag, (solvedTags.get(normalizedTag) || 0) + 1);
+            });
+          }
+        }
+      }
+    });
+
+    return {
+      solvedProblems,
+      solvedTags: Array.from(solvedTags.entries()).sort((a, b) => b[1] - a[1])
+    };
   } catch (error) {
-    console.error('Error fetching user info:', error);
+    console.error('Error fetching user submissions:', error);
     throw error;
   }
 };
 
-// Helper function to determine division from contest ID
-const getDivisionFromContestId = (contestId) => {
-  if (!contestId) return 'Unknown';
-  
-  const contestStr = contestId.toString();
-  
-  // Common patterns for different divisions
-  if (contestStr.length >= 4) {
-    const lastDigit = parseInt(contestStr.slice(-1));
+export const fetchUserInfo = async (handle) => {
+  try {
+    // Fetch basic user info
+    const [userInfo, userSubmissions] = await Promise.all([
+      axios.get(`${API_BASE_URL}/user.info?handles=${handle}`, {
+        timeout: 10000, // 10 second timeout
+      }),
+      fetchUserSubmissions(handle).catch(e => {
+        console.error('Error fetching user submissions, will continue with empty data', e);
+        return { solvedProblems: [], solvedTags: [] };
+      })
+    ]);
     
-    // For newer contests, we can use more specific patterns
-    if (contestId >= 1400) {
-      if (contestId % 10 === 1 || contestId % 10 === 2) return 'Div2';
-      if (contestId % 10 === 3 || contestId % 10 === 4) return 'Div3';
-      if (contestId % 10 === 5 || contestId % 10 === 6) return 'Div4';
+    if (userInfo.data.status !== 'OK') {
+      throw new Error('Failed to fetch user info from Codeforces API');
     }
-    
-    // Div1 contests often end with even numbers for older contests
-    if (lastDigit % 2 === 0 && contestId > 1000 && contestId < 1400) {
-      return 'Div1';
-    }
-    // Div2 contests often end with odd numbers for older contests
-    if (lastDigit % 2 === 1 && contestId > 1000 && contestId < 1400) {
-      return 'Div2';
-    }
+
+    return {
+      ...userInfo.data.result[0],
+      solvedProblems: userSubmissions.solvedProblems,
+      solvedTags: userSubmissions.solvedTags
+    };
+  } catch (error) {
+    console.error('Error in fetchUserInfo:', error);
+    throw error;
   }
-  
-  return 'Mixed';
+};
+
+// Process problem data from the Codeforces API
+export const processProblemsData = (problemsData) => {
+  if (!problemsData || !Array.isArray(problemsData)) return [];
+  return problemsData;
 };
 
 // Helper function to get difficulty level based on rating

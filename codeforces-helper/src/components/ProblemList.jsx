@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Star, ExternalLink, Tag, Award, Clock, Users, ChevronLeft, ChevronRight, Check, Target } from 'lucide-react';
+import { Star, ExternalLink, Tag, Award, ChevronLeft, ChevronRight, Check, Target, Clock } from 'lucide-react';
 
 const ProblemList = ({ 
   problems, 
@@ -77,27 +77,26 @@ const ProblemList = ({
     return 'from-purple-400 to-purple-600';
   };
 
-  const getDivisionColor = (division) => {
-    switch (division) {
-      case 'Div1': return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
-      case 'Div2': return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
-      case 'Div3': return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
-      case 'Div4': return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
-      default: return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
-    }
-  };
+
 
   // Pagination helpers
-  const handlePrevPage = () => {
+  const handlePrevPage = (e) => {
+    e.preventDefault();
     if (currentPage > 1) {
       onPageChange(currentPage - 1);
     }
   };
 
-  const handleNextPage = () => {
+  const handleNextPage = (e) => {
+    e.preventDefault();
     if (currentPage < totalPages) {
       onPageChange(currentPage + 1);
     }
+  };
+
+  const handlePageClick = (e, page) => {
+    e.preventDefault();
+    onPageChange(page);
   };
 
   const getPageNumbers = () => {
@@ -234,11 +233,7 @@ const ProblemList = ({
                     <span className="text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-lg">
                       Contest {problem.contestId}
                     </span>
-                    {problem.division && (
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium shadow-sm ${getDivisionColor(problem.division)}`}>
-                        {problem.division}
-                      </span>
-                    )}
+
                   </div>
                 </div>
                 
@@ -345,7 +340,10 @@ const ProblemList = ({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 animate-slide-up">
+        <div 
+          key={`pagination-${currentPage}`}
+          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 animate-slide-up"
+        >
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 px-4 py-2 rounded-xl">
               <span className="font-semibold text-blue-600 dark:text-blue-400">Page {currentPage}</span>
@@ -360,11 +358,12 @@ const ProblemList = ({
               <button
                 onClick={handlePrevPage}
                 disabled={currentPage === 1}
-                className={`p-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 ${
+                className={`p-2 rounded-lg transition-colors duration-200 ${
                   currentPage === 1
                     ? 'text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-700'
                     : 'text-gray-600 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 hover:text-white shadow-md'
                 }`}
+                aria-label="Previous page"
               >
                 <ChevronLeft size={20} />
               </button>
@@ -373,12 +372,13 @@ const ProblemList = ({
                 {getPageNumbers().map((pageNum) => (
                   <button
                     key={pageNum}
-                    onClick={() => onPageChange(pageNum)}
-                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 transform hover:scale-105 ${
+                    onClick={(e) => handlePageClick(e, pageNum)}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center font-medium transition-colors duration-200 ${
                       pageNum === currentPage
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                        : 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-500 text-white shadow-md'
+                        : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
+                    aria-current={pageNum === currentPage ? 'page' : undefined}
                   >
                     {pageNum}
                   </button>
@@ -388,11 +388,12 @@ const ProblemList = ({
               <button
                 onClick={handleNextPage}
                 disabled={currentPage === totalPages}
-                className={`p-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 ${
+                className={`p-2 rounded-lg transition-colors duration-200 ${
                   currentPage === totalPages
                     ? 'text-gray-400 cursor-not-allowed bg-gray-100 dark:bg-gray-700'
                     : 'text-gray-600 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 hover:text-white shadow-md'
                 }`}
+                aria-label="Next page"
               >
                 <ChevronRight size={20} />
               </button>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Moon, Sun, Filter, Search, Shuffle, Star, TrendingUp, User, Eye, EyeOff, Settings } from 'lucide-react';
 import ProblemList from './components/ProblemList';
 import FilterPanel from './components/FilterPanel';
@@ -54,11 +54,30 @@ function App() {
     search: ''
   });
 
-  // Separate pagination state for different tabs
-  const [paginationState, setPaginationState] = useState({
-    problems: { currentPage: 1, itemsPerPage: 50 },
-    favorites: { currentPage: 1, itemsPerPage: 50 }
+  // Initialize pagination state with localStorage persistence
+  const [paginationState, setPaginationState] = useState(() => {
+    // Try to load from localStorage first
+    if (typeof window !== 'undefined') {
+      const savedState = localStorage.getItem('cfhelper_pagination');
+      if (savedState) {
+        try {
+          return JSON.parse(savedState);
+        } catch (e) {
+          console.error('Failed to parse saved pagination state', e);
+        }
+      }
+    }
+    // Default state
+    return {
+      problems: { currentPage: 1, itemsPerPage: 6 },
+      favorites: { currentPage: 1, itemsPerPage: 6 }
+    };
   });
+
+  // Save state to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('cfhelper_pagination', JSON.stringify(paginationState));
+  }, [paginationState]);
 
   useEffect(() => {
     // Load favorites from localStorage with better error handling
@@ -119,13 +138,31 @@ function App() {
     localStorage.setItem('visibilitySettings', JSON.stringify(visibilitySettings));
   }, [visibilitySettings]);
 
-  // Reset to first page when filters change
+  // Track previous filters to detect changes
+  const prevFiltersRef = useRef(filters);
+
+  // Reset pagination when filters change
   useEffect(() => {
-    setPaginationState(prev => ({
-      ...prev,
-      problems: { ...prev.problems, currentPage: 1 },
-      favorites: { ...prev.favorites, currentPage: 1 }
-    }));
+    // Check if any filter has actually changed
+    const filtersChanged = Object.keys(filters).some(key => {
+      const prevValue = prevFiltersRef.current[key];
+      const currValue = filters[key];
+      
+      if (Array.isArray(prevValue) && Array.isArray(currValue)) {
+        return JSON.stringify(prevValue) !== JSON.stringify(currValue);
+      }
+      return prevValue !== currValue;
+    });
+
+    if (filtersChanged) {
+      console.log('Filters changed, resetting pagination');
+      setPaginationState(prev => ({
+        problems: { ...prev.problems, currentPage: 1 },
+        favorites: { ...prev.favorites, currentPage: 1 }
+      }));
+      // Update the ref to current filters
+      prevFiltersRef.current = filters;
+    }
   }, [filters]);
 
   const loadProblems = async () => {
@@ -149,33 +186,34 @@ function App() {
       const userData = await fetchUserInfo(handle);
       setCurrentUser(userData);
       localStorage.setItem('currentUser', JSON.stringify(userData));
-      setActiveTab('profile'); // Switch to profile tab after login
+      localStorage.setItem('solvedProblems', JSON.stringify(userData.solvedProblems || []));
+      
+      // Switch to profile tab
+      setActiveTab('profile');
+      
+      return userData;
     } catch (error) {
-      console.error('Error fetching user data:', error);
-      throw new Error('User not found or API error. Please check the handle and try again.');
+      console.error('Login error:', error);
+      throw new Error('Failed to fetch user data. Please check the handle and try again.');
     } finally {
       setUserLoading(false);
     }
   };
 
+  // Handle user logout
   const handleUserLogout = () => {
     setCurrentUser(null);
+    setSolvedProblems([]);
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('solvedProblems');
     setActiveTab('problems'); // Switch back to problems tab
   };
 
   // Memoized filtered problems with optimized filtering
   const filteredProblems = useMemo(() => {
-    let filtered = problems;
-
-    // Apply division filter
-    if (filters.division) {
-      filtered = filtered.filter(problem => 
-        problem.contestId && problem.contestId.toString().includes(filters.division)
-      );
-    }
-
-    // Apply position filter
+    let filtered = [...problems];
+    
+    // Apply position filter (A, B, C, etc.)
     if (filters.position) {
       filtered = filtered.filter(problem => 
         problem.index && problem.index.toLowerCase() === filters.position.toLowerCase()
@@ -210,13 +248,15 @@ function App() {
 
     // Apply search filter
     if (filters.search) {
-      const searchTerm = filters.search.toLowerCase();
-      filtered = filtered.filter(problem => 
-        problem.name.toLowerCase().includes(searchTerm) ||
-        (problem.tags && problem.tags.some(tag => 
-          tag.toLowerCase().includes(searchTerm)
-        ))
-      );
+      const searchTerm = filters.search.toLowerCase().trim();
+      if (searchTerm) {
+        filtered = filtered.filter(problem => 
+          problem.name.toLowerCase().includes(searchTerm) ||
+          (problem.tags && problem.tags.some(tag => 
+            tag.toLowerCase().includes(searchTerm)
+          ))
+        );
+      }
     }
 
     // Apply solved problems filter
@@ -229,13 +269,13 @@ function App() {
     return filtered;
   }, [problems, filters, visibilitySettings.showSolved, solvedProblems]);
 
-  // Memoized paginated problems
+  // Memoized paginated problems - only update when page changes
   const paginatedProblems = useMemo(() => {
     const { currentPage, itemsPerPage } = paginationState.problems;
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return filteredProblems.slice(startIndex, endIndex);
-  }, [filteredProblems, paginationState.problems]);
+  }, [filteredProblems, paginationState.problems.currentPage]);
 
   // Memoized favorite problems for better performance
   const favoriteProblems = useMemo(() => {
@@ -244,13 +284,13 @@ function App() {
     );
   }, [filteredProblems, favorites]);
 
-  // Memoized paginated favorite problems
+  // Memoized paginated favorite problems - only update when page changes
   const paginatedFavoriteProblems = useMemo(() => {
     const { currentPage, itemsPerPage } = paginationState.favorites;
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return favoriteProblems.slice(startIndex, endIndex);
-  }, [favoriteProblems, paginationState.favorites]);
+  }, [favoriteProblems, paginationState.favorites.currentPage]);
 
   // Calculate total pages
   const totalPages = Math.ceil(filteredProblems.length / paginationState.problems.itemsPerPage);
@@ -305,11 +345,25 @@ function App() {
 
   // Handle page changes for different tabs
   const handlePageChange = useCallback((page, tab = 'problems') => {
-    setPaginationState(prev => ({
-      ...prev,
-      [tab]: { ...prev[tab], currentPage: page }
-    }));
-  }, []);
+    // Ensure page is a valid number within bounds
+    const maxPage = tab === 'problems' ? totalPages : favoriteTotalPages;
+    const newPage = Math.max(1, Math.min(Number(page), maxPage));
+    
+    setPaginationState(prev => {
+      // Only update if the page is actually changing
+      if (prev[tab]?.currentPage === newPage) return prev;
+      
+      console.log(`Changing ${tab} page from ${prev[tab]?.currentPage} to ${newPage}`);
+      
+      return {
+        ...prev,
+        [tab]: { 
+          ...prev[tab], 
+          currentPage: newPage 
+        }
+      };
+    });
+  }, [totalPages, favoriteTotalPages]);
 
   // Toggle visibility settings
   const toggleVisibility = useCallback((setting) => {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Filter, ChevronDown, ChevronUp, X } from 'lucide-react';
-import { getContestDivisions, getProblemPositions, getPopularTags } from '../services/codeforcesApi';
+import { getProblemPositions, getPopularTags } from '../services/codeforcesApi';
 
 const FilterPanel = ({ filters, setFilters, problemCount, onClearFilters, solvedCount = 0, totalProblems = 0 }) => {
   const [expandedSections, setExpandedSections] = useState({
@@ -9,7 +9,6 @@ const FilterPanel = ({ filters, setFilters, problemCount, onClearFilters, solved
     tags: false
   });
 
-  const divisions = getContestDivisions();
   const positions = getProblemPositions();
   const popularTags = getPopularTags();
 
@@ -18,13 +17,6 @@ const FilterPanel = ({ filters, setFilters, problemCount, onClearFilters, solved
       ...prev,
       [section]: !prev[section]
     }));
-  };
-
-  const handleDivisionChange = (division) => {
-    setFilters({
-      ...filters,
-      division: filters.division === division ? '' : division
-    });
   };
 
   const handlePositionChange = (position) => {
@@ -46,7 +38,7 @@ const FilterPanel = ({ filters, setFilters, problemCount, onClearFilters, solved
   };
 
   const hasActiveFilters = () => {
-    return filters.division || filters.position || filters.minRating || 
+    return filters.position || filters.minRating || 
            filters.maxRating || filters.tags.length > 0 || filters.search;
   };
 
@@ -95,14 +87,14 @@ const FilterPanel = ({ filters, setFilters, problemCount, onClearFilters, solved
         </div>
       </div>
 
-      {/* Contest Division & Position */}
+      {/* Problem Position */}
       <div className="card">
         <button
           onClick={() => toggleSection('contest')}
           className="flex items-center justify-between w-full text-left"
         >
           <h3 className="text-md font-medium text-gray-900 dark:text-white">
-            Contest & Position
+            Problem Position
           </h3>
           {expandedSections.contest ? (
             <ChevronUp size={16} className="text-gray-500" />
@@ -113,28 +105,6 @@ const FilterPanel = ({ filters, setFilters, problemCount, onClearFilters, solved
         
         {expandedSections.contest && (
           <div className="mt-4 space-y-4">
-            {/* Division Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Division
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {divisions.map((division) => (
-                  <button
-                    key={division}
-                    onClick={() => handleDivisionChange(division)}
-                    className={
-                      filters.division === division 
-                        ? 'filter-chip-active' 
-                        : 'filter-chip'
-                    }
-                  >
-                    {division}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Position Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
