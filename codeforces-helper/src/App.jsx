@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Moon, Sun, Filter, Search, Shuffle, Star, TrendingUp, User, Eye, EyeOff, Settings } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 import ProblemList from './components/ProblemList';
 import FilterPanel from './components/FilterPanel';
 import SearchBar from './components/SearchBar';
@@ -617,6 +618,7 @@ function App() {
           </div>
         </div>
       </main>
+      <Analytics />
     </div>
   );
 }
