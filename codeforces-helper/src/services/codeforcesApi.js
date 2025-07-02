@@ -7,6 +7,18 @@ let problemsCache = null;
 let cacheTimestamp = null;
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
+// Helper function to determine contest division from contest ID
+const getDivisionFromContestId = (contestId) => {
+  // Division 1 contests typically have contestId < 10000 and rating >= 1900
+  // Division 2 contests typically have contestId < 10000 and rating < 1900
+  // Division 3 contests typically have contestId >= 10000
+  // This is a simplified approach and might need adjustment based on actual contest IDs
+  if (contestId >= 10000) {
+    return 3;
+  }
+  return 2; // Default to Division 2 for older contests
+};
+
 export const fetchProblems = async () => {
   try {
     // Check if we have cached data that's still valid

@@ -195,6 +195,11 @@ const UserProfile = ({ user, problems, favorites, solvedProblems = [], onLogout 
                   <div className="text-sm opacity-80">Max Rating</div>
                 </div>
                 
+                <div className="text-center">
+                  <div className="text-3xl font-bold">{solvedProblems.length}</div>
+                  <div className="text-sm opacity-80">Problems Solved</div>
+                </div>
+                
                 <button
                   onClick={onLogout}
                   className="px-6 py-3 bg-white bg-opacity-20 text-white rounded-full font-medium hover:bg-opacity-30 transition-all duration-200 flex items-center space-x-2 backdrop-blur-sm"
